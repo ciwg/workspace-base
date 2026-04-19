@@ -18,10 +18,21 @@ RUN apt-get update \
       ca-certificates=20240203 \
  && rm -rf /var/lib/apt/lists/*
 
-# TODO: pin decomk to a specific tag/commit once stevegt cuts a stable release.
+# Alpha: @latest intentionally unpinned until a stable tag is cut.
+# See TODO 026.2. Will pin to a specific tag/commit when available.
 RUN go install github.com/stevegt/decomk/cmd/decomk@latest \
  && mv /root/go/bin/decomk /usr/local/bin/decomk
 
+# Create dev user (uid 1000) with passwordless sudo, matching decomk convention.
+# The Microsoft base image creates a vscode user at uid 1000; replace it.
+RUN userdel -r vscode 2>/dev/null || true \
+ && useradd --create-home --shell /bin/bash --uid 1000 dev \
+ && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev \
+ && chmod 0440 /etc/sudoers.d/dev
+
 # ---- block0 region ---------------------------------------------------------
-RUN git clone https://github.com/ciwg/workspace-config /var/decomk/conf \
+RUN mkdir -p /var/decomk /var/log/decomk \
+ && git clone https://github.com/ciwg/workspace-config /var/decomk/conf \
  && decomk run
+
+RUN chown -R dev:dev /var/decomk /var/log/decomk
